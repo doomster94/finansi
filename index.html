@@ -5,7 +5,157 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Финанси</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js">
+/* ══════════════════════════════════════════
+   DEBT
+══════════════════════════════════════════ */
+let _payDebtId = null;
+
+function renderDebt() {
+  const debts = S.debts || [];
+  return `
+    <div class="card">
+      <div class="card-title">Добави дълг</div>
+      <div class="fg"><label>Кредитор</label><input type="text" id="dbt_creditor" placeholder="Напр. Банка, приятел..."></div>
+      <div class="form-row">
+        <div class="fg"><label>Обща сума</label><input type="number" id="dbt_total" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
+        <div class="fg"><label>Валута</label><select id="dbt_cur"><option>EUR</option><option>USD</option></select></div>
+      </div>
+      <div class="fg"><label>Дата</label><input type="date" id="dbt_date" value="${today()}"></div>
+      <div class="fg"><label>Бележка</label><input type="text" id="dbt_note" placeholder="По желание..."></div>
+      <button class="btn btn-primary" onclick="addDebt()">+ Добави дълг</button>
+    </div>
+
+    ${debts.length === 0
+      ? `<div class="empty"><div class="empty-icon">💸</div>Нямаш записани дългове</div>`
+      : debts.map(debtHTML).join('')}
+  `;
+}
+
+function debtHTML(d) {
+  const payments = Object.values(d.payments || {});
+  const paidEUR = payments.reduce((s, p) => s + p.amountEUR, 0);
+  const totalEUR = d.totalEUR;
+  const remainEUR = Math.max(totalEUR - paidEUR, 0);
+  const pct = Math.min((paidEUR / totalEUR) * 100, 100);
+  const isPaid = remainEUR <= 0;
+
+  return `
+    <div class="debt-card">
+      <div class="debt-header">
+        <div>
+          <div class="debt-creditor">${d.creditor}</div>
+          <div class="debt-date">${d.date}${d.note ? ' · ' + d.note : ''}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${isPaid ? '<span class="debt-paid-badge">✓ ИЗПЛАТЕН</span>' : ''}
+          <button class="del-btn" onclick="delDebt('${d.id}')">✕</button>
+        </div>
+      </div>
+
+      <div class="debt-amounts">
+        <div class="debt-amt-box">
+          <div class="debt-amt-label">Общо</div>
+          <div class="debt-amt-val total">${fmt(totalEUR)}${d.currency==='USD'?'<div style="font-size:10px;color:var(--text3)">$'+d.total+'</div>':''}</div>
+        </div>
+        <div class="debt-amt-box">
+          <div class="debt-amt-label">Платено</div>
+          <div class="debt-amt-val paid">${fmt(paidEUR)}</div>
+        </div>
+        <div class="debt-amt-box">
+          <div class="debt-amt-label">Остава</div>
+          <div class="debt-amt-val remaining">${fmt(remainEUR)}</div>
+        </div>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-bar" style="width:${pct.toFixed(1)}%"></div>
+      </div>
+      <div class="progress-label">${pct.toFixed(0)}% изплатено</div>
+
+      ${!isPaid ? `<button class="pay-btn" onclick="openPayModal('${d.id}')">+ Добави плащане</button>` : ''}
+
+      ${payments.length > 0 ? `
+        <div class="pay-history">
+          <div class="pay-history-title">История на плащанията</div>
+          ${payments.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(p=>`
+            <div class="pay-item">
+              <div class="pay-item-left">${p.date}${p.note?' · '+p.note:''}</div>
+              <div class="pay-item-amt">+${fmt(p.amountEUR)}${p.currency==='USD'?' <span style="font-size:10px;color:var(--text3)">($'+p.amount+')</span>':''}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+async function addDebt() {
+  try {
+    const creditor = v('dbt_creditor');
+    const total = parseFloat(document.getElementById('dbt_total')?.value || 0);
+    const cur = v('dbt_cur');
+    const date = v('dbt_date');
+    const note = v('dbt_note') || '';
+    if (!creditor) { toast('⚠️ Въведи кредитор!'); return; }
+    if (!total || total <= 0) { toast('⚠️ Въведи сума!'); return; }
+    const totalEUR = cur === 'USD' ? +(total * USD_TO_EUR).toFixed(2) : +total;
+    await db.ref(`users/${S.user.uid}/debts`).push({
+      creditor, total: +total, currency: cur, totalEUR, date, note,
+      payments: {}, createdAt: Date.now()
+    });
+    document.getElementById('dbt_creditor').value = '';
+    document.getElementById('dbt_total').value = '';
+    document.getElementById('dbt_note').value = '';
+    toast('✓ Дългът е добавен!');
+  } catch(err) {
+    console.error(err);
+    toast('❌ Грешка при запис!');
+  }
+}
+
+function openPayModal(debtId) {
+  _payDebtId = debtId;
+  document.getElementById('pay_amt').value = '';
+  document.getElementById('pay_note').value = '';
+  document.getElementById('pay_date').value = today();
+  document.getElementById('pay-modal').classList.add('show');
+}
+function closePayModal() {
+  document.getElementById('pay-modal').classList.remove('show');
+  _payDebtId = null;
+}
+document.getElementById('pay-modal').onclick = function(e) {
+  if (e.target === this) closePayModal();
+};
+
+async function submitPayment() {
+  try {
+    const amt = parseFloat(document.getElementById('pay_amt')?.value || 0);
+    const cur = v('pay_cur');
+    const date = v('pay_date');
+    const note = v('pay_note') || '';
+    if (!amt || amt <= 0) { toast('⚠️ Въведи сума!'); return; }
+    const amtEUR = cur === 'USD' ? +(amt * USD_TO_EUR).toFixed(2) : +amt;
+    await db.ref(`users/${S.user.uid}/debts/${_payDebtId}/payments`).push({
+      amount: +amt, currency: cur, amountEUR, date, note, createdAt: Date.now()
+    });
+    closePayModal();
+    toast('✓ Плащането е записано!');
+  } catch(err) {
+    console.error(err);
+    toast('❌ Грешка при запис!');
+  }
+}
+
+function delDebt(id) {
+  showConfirm('Изтрий дълг', 'Ще се изтрият и всички плащания към него.', async () => {
+    await db.ref(`users/${S.user.uid}/debts/${id}`).remove();
+    toast('Изтрито!');
+  });
+}
+
+</script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
@@ -357,6 +507,57 @@ textarea{resize:vertical;min-height:72px;}
 .confirm-actions{display:flex;gap:10px;}
 .confirm-actions .btn{flex:1;}
 
+
+/* ── DEBT ── */
+.debt-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:16px;padding:16px;margin-bottom:12px;
+}
+.debt-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.debt-creditor{font-size:16px;font-weight:700;}
+.debt-date{font-size:12px;color:var(--text2);margin-top:2px;}
+.debt-note{font-size:12px;color:var(--text3);margin-top:2px;}
+.debt-amounts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
+.debt-amt-box{background:var(--bg3);border-radius:10px;padding:10px;}
+.debt-amt-label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
+.debt-amt-val{font-size:16px;font-weight:800;}
+.debt-amt-val.total{color:var(--text);}
+.debt-amt-val.paid{color:var(--green);}
+.debt-amt-val.remaining{color:var(--red);}
+.progress-wrap{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-bottom:10px;}
+.progress-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green2),var(--green));transition:width .4s;}
+.progress-label{font-size:11px;color:var(--text2);margin-bottom:10px;}
+.pay-btn{
+  background:var(--green-bg);border:1px solid var(--green-border);
+  color:var(--green);border-radius:10px;padding:8px 14px;
+  font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
+  transition:all .2s;
+}
+.pay-btn:hover{background:var(--green2);color:#fff;border-color:var(--green2);}
+.pay-history{margin-top:12px;border-top:1px solid var(--border);padding-top:10px;}
+.pay-history-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;}
+.pay-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);}
+.pay-item:last-child{border-bottom:none;}
+.pay-item-left{font-size:13px;color:var(--text2);}
+.pay-item-amt{font-size:14px;font-weight:700;color:var(--green);}
+.debt-paid-badge{
+  background:var(--green-bg);border:1px solid var(--green-border);
+  color:var(--green);font-size:11px;font-weight:700;
+  padding:3px 8px;border-radius:6px;
+}
+
+/* ── PAY MODAL ── */
+#pay-modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);
+  display:none;align-items:flex-end;justify-content:center;z-index:300;
+  backdrop-filter:blur(4px);
+}
+#pay-modal.show{display:flex;}
+.pay-modal-box{
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:520px;
+}
+.pay-modal-title{font-size:16px;font-weight:700;margin-bottom:16px;}
 </style>
 </head>
 <body>
@@ -424,9 +625,30 @@ textarea{resize:vertical;min-height:72px;}
       <button class="nav-item" data-tab="recurring" onclick="switchTab('recurring')">
         <span class="nav-icon">🔄</span>Повтарящи
       </button>
+      <button class="nav-item" data-tab="debt" onclick="switchTab('debt')">
+        <span class="nav-icon">💸</span>Дълг
+      </button>
     </nav>
   </div>
 
+</div>
+
+
+<!-- Pay modal -->
+<div id="pay-modal">
+  <div class="pay-modal-box">
+    <div class="pay-modal-title">Добави плащане</div>
+    <div class="fg"><label>Сума</label><input type="number" id="pay_amt" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="form-row">
+      <div class="fg"><label>Валута</label><select id="pay_cur"><option>EUR</option><option>USD</option></select></div>
+      <div class="fg"><label>Дата</label><input type="date" id="pay_date"></div>
+    </div>
+    <div class="fg"><label>Бележка</label><input type="text" id="pay_note" placeholder="По желание..."></div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn btn-ghost" onclick="closePayModal()">Отказ</button>
+      <button class="btn btn-green" onclick="submitPayment()">Плати</button>
+    </div>
+  </div>
 </div>
 
 <!-- Toast -->
@@ -475,6 +697,7 @@ const S = {
   user: null,
   txs: [],
   recs: [],
+  debts: [],
   tab: 'overview',
   month: new Date(),
   filter: 'month',
@@ -516,6 +739,12 @@ function startListeners() {
   const uid = S.user.uid;
   txRef  = db.ref(`users/${uid}/txs`);
   recRef = db.ref(`users/${uid}/recs`);
+  db.ref(`users/${uid}/debts`).on('value', snap => {
+    const d = snap.val() || {};
+    S.debts = Object.entries(d).map(([id,debt]) => ({id,...debt}));
+    S.debts.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (S.tab === 'debt') render();
+  });
 
   txOff = txRef.on('value', snap => {
     const d = snap.val() || {};
@@ -620,7 +849,7 @@ function authErr(c) {
 /* ══════════════════════════════════════════
    NAVIGATION
 ══════════════════════════════════════════ */
-const TAB_TITLES = {overview:'Преглед',income:'Приходи',expense:'Разходи',recurring:'Повтарящи се'};
+const TAB_TITLES = {overview:'Преглед',income:'Приходи',expense:'Разходи',recurring:'Повтарящи се',debt:'Дълг'};
 
 function switchTab(t) {
   S.tab = t;
@@ -665,6 +894,7 @@ function render() {
     case 'income':    c.innerHTML=renderIncome();  break;
     case 'expense':   c.innerHTML=renderExpense(); break;
     case 'recurring': c.innerHTML=renderRecurring(); break;
+    case 'debt':      c.innerHTML=renderDebt(); break;
   }
 }
 
