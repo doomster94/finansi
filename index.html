@@ -496,9 +496,11 @@ auth.onAuthStateChanged(u => {
   if (u) {
     S.user = u;
     document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('main-screen').style.display = 'flex';
-    document.getElementById('main-screen').style.flexDirection = 'column';
+    const ms = document.getElementById('main-screen');
+    ms.style.display = 'flex';
+    ms.style.flexDirection = 'column';
     startListeners();
+    requestAnimationFrame(() => requestAnimationFrame(() => render()));
   } else {
     S.user = null;
     stopListeners();
@@ -738,6 +740,7 @@ function drawChart() {
   if (!canvas) return;
   const dpr=window.devicePixelRatio||1;
   const W=canvas.parentElement.clientWidth-32;
+  if(W<=10){setTimeout(drawChart,80);return;}
   const H=140;
   canvas.style.width=W+'px';
   canvas.style.height=H+'px';
@@ -818,16 +821,16 @@ function renderIncome() {
     <div class="card">
       <div class="card-title">Добави приход</div>
       <div class="fg"><label>Категория</label>
-        <select id="ic">${INC_CATS.map(c=>`<option>${c}</option>`).join('')}</select></div>
+        <select id="inc_cat">${INC_CATS.map(c=>`<option>${c}</option>`).join('')}</select></div>
       <div class="form-row">
-        <div class="fg"><label>Сума</label><input type="number" id="ia" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
-        <div class="fg"><label>Валута</label><select id="icur"><option>EUR</option><option>USD</option></select></div>
+        <div class="fg"><label>Сума</label><input type="number" id="inc_amt" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
+        <div class="fg"><label>Валута</label><select id="inc_cur"><option>EUR</option><option>USD</option></select></div>
       </div>
       <div class="form-row">
-        <div class="fg"><label>Дата</label><input type="date" id="id" value="${today()}"></div>
-        <div class="fg"><label>Час</label><input type="time" id="it" value="${nowTime()}"></div>
+        <div class="fg"><label>Дата</label><input type="date" id="inc_date" value="${today()}"></div>
+        <div class="fg"><label>Час</label><input type="time" id="inc_time" value="${nowTime()}"></div>
       </div>
-      <div class="fg"><label>Бележка</label><input type="text" id="in" placeholder="По желание..."></div>
+      <div class="fg"><label>Бележка</label><input type="text" id="inc_note" placeholder="По желание..."></div>
       <button class="btn btn-green" onclick="addTx('income')">+ Добави приход</button>
     </div>
     ${txs.length===0
@@ -846,17 +849,17 @@ function renderExpense() {
     <div class="card">
       <div class="card-title">Добави разход</div>
       <div class="fg"><label>Категория</label>
-        <select id="ec">${EXP_CATS.map(c=>`<option>${c}</option>`).join('')}</select></div>
+        <select id="exp_cat">${EXP_CATS.map(c=>`<option>${c}</option>`).join('')}</select></div>
       <div class="form-row">
-        <div class="fg"><label>Сума</label><input type="number" id="ea" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
-        <div class="fg"><label>Валута</label><select id="ecur"><option>EUR</option><option>USD</option></select></div>
+        <div class="fg"><label>Сума</label><input type="number" id="exp_amt" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
+        <div class="fg"><label>Валута</label><select id="exp_cur"><option>EUR</option><option>USD</option></select></div>
       </div>
       <div class="form-row">
-        <div class="fg"><label>Дата</label><input type="date" id="ed" value="${today()}"></div>
-        <div class="fg"><label>Час</label><input type="time" id="et" value="${nowTime()}"></div>
+        <div class="fg"><label>Дата</label><input type="date" id="exp_date" value="${today()}"></div>
+        <div class="fg"><label>Час</label><input type="time" id="exp_time" value="${nowTime()}"></div>
       </div>
-      <div class="fg"><label>Място</label><input type="text" id="ep" placeholder="По желание..."></div>
-      <div class="fg"><label>Бележка</label><input type="text" id="en" placeholder="По желание..."></div>
+      <div class="fg"><label>Място</label><input type="text" id="exp_place" placeholder="По желание..."></div>
+      <div class="fg"><label>Бележка</label><input type="text" id="exp_note" placeholder="По желание..."></div>
       <button class="btn btn-red" onclick="addTx('expense')">+ Добави разход</button>
     </div>
     ${txs.length===0
@@ -936,29 +939,36 @@ function txHTML(tx) {
    CRUD
 ══════════════════════════════════════════ */
 async function addTx(type) {
-  const p=type==='income'?'i':'e';
-  const amt=parseFloat(document.getElementById(p+'a')?.value||0);
-  const cur=v(p+'cur');
-  const date=v(p+'d');
-  const time=v(p+'t');
-  const cat=v(p+'c');
-  const note=v(p+'n')||'';
-  const place=type==='expense'?(v('ep')||''):'';
+  try {
+    const isInc = type==='income';
+    const amt = parseFloat((isInc?document.getElementById('inc_amt'):document.getElementById('exp_amt'))?.value||0);
+    const cur  = isInc?v('inc_cur'):v('exp_cur');
+    const date = isInc?v('inc_date'):v('exp_date');
+    const time = isInc?v('inc_time'):v('exp_time');
+    const cat  = isInc?v('inc_cat'):v('exp_cat');
+    const note = isInc?v('inc_note'):v('exp_note');
+    const place = isInc?'':(v('exp_place')||'');
 
-  if(!amt||amt<=0||!date){toast('⚠️ Въведи сума и дата!');return;}
-  const amtEUR=cur==='USD'?+(amt*USD_TO_EUR).toFixed(2):+amt;
-  await db.ref(`users/${S.user.uid}/txs`).push({
-    type,category:cat,amount:+amt,currency:cur,amountEUR:amtEUR,
-    date,time,note,place,fromRecurring:false,createdAt:Date.now()
-  });
-  // Reset amount, place, note
-  const aEl=document.getElementById(p+'a');
-  const nEl=document.getElementById(p+'n');
-  const pEl=document.getElementById('ep');
-  if(aEl)aEl.value='';
-  if(nEl)nEl.value='';
-  if(pEl)pEl.value='';
-  toast('✓ Добавено!');
+    if(!amt||amt<=0){toast('⚠️ Въведи сума!');return;}
+    if(!date){toast('⚠️ Въведи дата!');return;}
+    const amtEUR=cur==='USD'?+(amt*USD_TO_EUR).toFixed(2):+amt;
+    await db.ref(`users/${S.user.uid}/txs`).push({
+      type,category:cat,amount:+amt,currency:cur,amountEUR:amtEUR,
+      date,time,note,place,fromRecurring:false,createdAt:Date.now()
+    });
+    if(isInc){
+      document.getElementById('inc_amt').value='';
+      document.getElementById('inc_note').value='';
+    } else {
+      document.getElementById('exp_amt').value='';
+      document.getElementById('exp_note').value='';
+      document.getElementById('exp_place').value='';
+    }
+    toast('✓ Добавено!');
+  } catch(err) {
+    console.error('addTx error:',err);
+    toast('❌ Грешка при запис!');
+  }
 }
 
 async function addRec() {
