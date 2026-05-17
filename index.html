@@ -764,6 +764,15 @@ function renderOverview() {
   const maxInc = Math.max(...Object.values(incCats),0.01);
   const maxExp = Math.max(...Object.values(expCats),0.01);
 
+  const debts      = S.debts || [];
+  const debtTotal  = debts.reduce((s,d)=>s+d.totalEUR,0);
+  const debtPaid   = debts.reduce((s,d)=>s+Object.values(d.payments||{}).reduce((p,pay)=>p+pay.amountEUR,0),0);
+  const debtRemain = Math.max(debtTotal-debtPaid,0);
+  const activeDebts= debts.filter(d=>{
+    const paid=Object.values(d.payments||{}).reduce((p,pay)=>p+pay.amountEUR,0);
+    return paid < d.totalEUR;
+  });
+
   return `
     ${monthNav()}${filterTabs()}
     <div class="summary-grid">
@@ -785,6 +794,36 @@ function renderOverview() {
       <div class="chart-title">Последни 5 месеца</div>
       <canvas id="bar-chart"></canvas>
     </div>
+
+    ${debtTotal > 0 ? `
+    <div class="card">
+      <div class="card-title">Дългове</div>
+      <div class="summary-grid" style="margin-bottom:12px">
+        <div class="summary-card">
+          <div class="s-label">Общо дълг</div>
+          <div class="s-amount neutral" style="font-size:20px">${fmt(debtTotal)}</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-label">Остава</div>
+          <div class="s-amount red" style="font-size:20px">${fmt(debtRemain)}</div>
+        </div>
+      </div>
+      ${activeDebts.map(d=>{
+        const paid=Object.values(d.payments||{}).reduce((p,pay)=>p+pay.amountEUR,0);
+        const remain=Math.max(d.totalEUR-paid,0);
+        const pct=Math.min((paid/d.totalEUR)*100,100);
+        return `<div class="cat-item" style="flex-direction:column;align-items:flex-start;gap:6px;padding:10px 0">
+          <div style="display:flex;justify-content:space-between;width:100%">
+            <span class="cat-name">${d.creditor}</span>
+            <span style="font-size:13px;font-weight:700;color:var(--red)">${fmt(remain)}</span>
+          </div>
+          <div style="width:100%;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden">
+            <div style="width:${pct.toFixed(1)}%;height:100%;background:var(--green);border-radius:2px"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text3)">${pct.toFixed(0)}% изплатено · платено ${fmt(paid)}</div>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
 
     ${Object.keys(incCats).length ? `
     <div class="card">
@@ -808,11 +847,9 @@ function renderOverview() {
         </div>`).join('')}
     </div>` : ''}
 
-    ${txs.length===0?`<div class="empty"><div class="empty-icon">📭</div>Няма транзакции за периода</div>`:''}
+    ${txs.length===0&&debtTotal===0?`<div class="empty"><div class="empty-icon">📭</div>Няма данни за периода</div>`:''}
   `;
-}
-
-/* ══════════════════════════════════════════
+}* ══════════════════════════════════════════
    BAR CHART
 ══════════════════════════════════════════ */
 function drawChart() {
