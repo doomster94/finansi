@@ -5,157 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Финанси</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js">
-/* ══════════════════════════════════════════
-   DEBT
-══════════════════════════════════════════ */
-let _payDebtId = null;
-
-function renderDebt() {
-  const debts = S.debts || [];
-  return `
-    <div class="card">
-      <div class="card-title">Добави дълг</div>
-      <div class="fg"><label>Кредитор</label><input type="text" id="dbt_creditor" placeholder="Напр. Банка, приятел..."></div>
-      <div class="form-row">
-        <div class="fg"><label>Обща сума</label><input type="number" id="dbt_total" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
-        <div class="fg"><label>Валута</label><select id="dbt_cur"><option>EUR</option><option>USD</option></select></div>
-      </div>
-      <div class="fg"><label>Дата</label><input type="date" id="dbt_date" value="${today()}"></div>
-      <div class="fg"><label>Бележка</label><input type="text" id="dbt_note" placeholder="По желание..."></div>
-      <button class="btn btn-primary" onclick="addDebt()">+ Добави дълг</button>
-    </div>
-
-    ${debts.length === 0
-      ? `<div class="empty"><div class="empty-icon">💸</div>Нямаш записани дългове</div>`
-      : debts.map(debtHTML).join('')}
-  `;
-}
-
-function debtHTML(d) {
-  const payments = Object.values(d.payments || {});
-  const paidEUR = payments.reduce((s, p) => s + p.amountEUR, 0);
-  const totalEUR = d.totalEUR;
-  const remainEUR = Math.max(totalEUR - paidEUR, 0);
-  const pct = Math.min((paidEUR / totalEUR) * 100, 100);
-  const isPaid = remainEUR <= 0;
-
-  return `
-    <div class="debt-card">
-      <div class="debt-header">
-        <div>
-          <div class="debt-creditor">${d.creditor}</div>
-          <div class="debt-date">${d.date}${d.note ? ' · ' + d.note : ''}</div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          ${isPaid ? '<span class="debt-paid-badge">✓ ИЗПЛАТЕН</span>' : ''}
-          <button class="del-btn" onclick="delDebt('${d.id}')">✕</button>
-        </div>
-      </div>
-
-      <div class="debt-amounts">
-        <div class="debt-amt-box">
-          <div class="debt-amt-label">Общо</div>
-          <div class="debt-amt-val total">${fmt(totalEUR)}${d.currency==='USD'?'<div style="font-size:10px;color:var(--text3)">$'+d.total+'</div>':''}</div>
-        </div>
-        <div class="debt-amt-box">
-          <div class="debt-amt-label">Платено</div>
-          <div class="debt-amt-val paid">${fmt(paidEUR)}</div>
-        </div>
-        <div class="debt-amt-box">
-          <div class="debt-amt-label">Остава</div>
-          <div class="debt-amt-val remaining">${fmt(remainEUR)}</div>
-        </div>
-      </div>
-
-      <div class="progress-wrap">
-        <div class="progress-bar" style="width:${pct.toFixed(1)}%"></div>
-      </div>
-      <div class="progress-label">${pct.toFixed(0)}% изплатено</div>
-
-      ${!isPaid ? `<button class="pay-btn" onclick="openPayModal('${d.id}')">+ Добави плащане</button>` : ''}
-
-      ${payments.length > 0 ? `
-        <div class="pay-history">
-          <div class="pay-history-title">История на плащанията</div>
-          ${payments.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(p=>`
-            <div class="pay-item">
-              <div class="pay-item-left">${p.date}${p.note?' · '+p.note:''}</div>
-              <div class="pay-item-amt">+${fmt(p.amountEUR)}${p.currency==='USD'?' <span style="font-size:10px;color:var(--text3)">($'+p.amount+')</span>':''}</div>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
-    </div>
-  `;
-}
-
-async function addDebt() {
-  try {
-    const creditor = v('dbt_creditor');
-    const total = parseFloat(document.getElementById('dbt_total')?.value || 0);
-    const cur = v('dbt_cur');
-    const date = v('dbt_date');
-    const note = v('dbt_note') || '';
-    if (!creditor) { toast('⚠️ Въведи кредитор!'); return; }
-    if (!total || total <= 0) { toast('⚠️ Въведи сума!'); return; }
-    const totalEUR = cur === 'USD' ? +(total * USD_TO_EUR).toFixed(2) : +total;
-    await db.ref(`users/${S.user.uid}/debts`).push({
-      creditor, total: +total, currency: cur, totalEUR, date, note,
-      payments: {}, createdAt: Date.now()
-    });
-    document.getElementById('dbt_creditor').value = '';
-    document.getElementById('dbt_total').value = '';
-    document.getElementById('dbt_note').value = '';
-    toast('✓ Дългът е добавен!');
-  } catch(err) {
-    console.error(err);
-    toast('❌ Грешка при запис!');
-  }
-}
-
-function openPayModal(debtId) {
-  _payDebtId = debtId;
-  document.getElementById('pay_amt').value = '';
-  document.getElementById('pay_note').value = '';
-  document.getElementById('pay_date').value = today();
-  document.getElementById('pay-modal').classList.add('show');
-}
-function closePayModal() {
-  document.getElementById('pay-modal').classList.remove('show');
-  _payDebtId = null;
-}
-document.getElementById('pay-modal').onclick = function(e) {
-  if (e.target === this) closePayModal();
-};
-
-async function submitPayment() {
-  try {
-    const amt = parseFloat(document.getElementById('pay_amt')?.value || 0);
-    const cur = v('pay_cur');
-    const date = v('pay_date');
-    const note = v('pay_note') || '';
-    if (!amt || amt <= 0) { toast('⚠️ Въведи сума!'); return; }
-    const amtEUR = cur === 'USD' ? +(amt * USD_TO_EUR).toFixed(2) : +amt;
-    await db.ref(`users/${S.user.uid}/debts/${_payDebtId}/payments`).push({
-      amount: +amt, currency: cur, amountEUR, date, note, createdAt: Date.now()
-    });
-    closePayModal();
-    toast('✓ Плащането е записано!');
-  } catch(err) {
-    console.error(err);
-    toast('❌ Грешка при запис!');
-  }
-}
-
-function delDebt(id) {
-  showConfirm('Изтрий дълг', 'Ще се изтрият и всички плащания към него.', async () => {
-    await db.ref(`users/${S.user.uid}/debts/${id}`).remove();
-    toast('Изтрито!');
-  });
-}
-
-</script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
@@ -1298,6 +1148,155 @@ document.getElementById('confirm-ok').onclick=async()=>{
 document.getElementById('confirm-overlay').onclick=function(e){
   if(e.target===this)closeConfirm();
 };
+
+/* ══════════════════════════════════════════
+   DEBT
+══════════════════════════════════════════ */
+let _payDebtId = null;
+
+function renderDebt() {
+  const debts = S.debts || [];
+  return `
+    <div class="card">
+      <div class="card-title">Добави дълг</div>
+      <div class="fg"><label>Кредитор</label><input type="text" id="dbt_creditor" placeholder="Напр. Банка, приятел..."></div>
+      <div class="form-row">
+        <div class="fg"><label>Обща сума</label><input type="number" id="dbt_total" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
+        <div class="fg"><label>Валута</label><select id="dbt_cur"><option>EUR</option><option>USD</option></select></div>
+      </div>
+      <div class="fg"><label>Дата</label><input type="date" id="dbt_date" value="${today()}"></div>
+      <div class="fg"><label>Бележка</label><input type="text" id="dbt_note" placeholder="По желание..."></div>
+      <button class="btn btn-primary" onclick="addDebt()">+ Добави дълг</button>
+    </div>
+
+    ${debts.length === 0
+      ? `<div class="empty"><div class="empty-icon">💸</div>Нямаш записани дългове</div>`
+      : debts.map(debtHTML).join('')}
+  `;
+}
+
+function debtHTML(d) {
+  const payments = Object.values(d.payments || {});
+  const paidEUR = payments.reduce((s, p) => s + p.amountEUR, 0);
+  const totalEUR = d.totalEUR;
+  const remainEUR = Math.max(totalEUR - paidEUR, 0);
+  const pct = Math.min((paidEUR / totalEUR) * 100, 100);
+  const isPaid = remainEUR <= 0;
+
+  return `
+    <div class="debt-card">
+      <div class="debt-header">
+        <div>
+          <div class="debt-creditor">${d.creditor}</div>
+          <div class="debt-date">${d.date}${d.note ? ' · ' + d.note : ''}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${isPaid ? '<span class="debt-paid-badge">✓ ИЗПЛАТЕН</span>' : ''}
+          <button class="del-btn" onclick="delDebt('${d.id}')">✕</button>
+        </div>
+      </div>
+
+      <div class="debt-amounts">
+        <div class="debt-amt-box">
+          <div class="debt-amt-label">Общо</div>
+          <div class="debt-amt-val total">${fmt(totalEUR)}${d.currency==='USD'?'<div style="font-size:10px;color:var(--text3)">$'+d.total+'</div>':''}</div>
+        </div>
+        <div class="debt-amt-box">
+          <div class="debt-amt-label">Платено</div>
+          <div class="debt-amt-val paid">${fmt(paidEUR)}</div>
+        </div>
+        <div class="debt-amt-box">
+          <div class="debt-amt-label">Остава</div>
+          <div class="debt-amt-val remaining">${fmt(remainEUR)}</div>
+        </div>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-bar" style="width:${pct.toFixed(1)}%"></div>
+      </div>
+      <div class="progress-label">${pct.toFixed(0)}% изплатено</div>
+
+      ${!isPaid ? `<button class="pay-btn" onclick="openPayModal('${d.id}')">+ Добави плащане</button>` : ''}
+
+      ${payments.length > 0 ? `
+        <div class="pay-history">
+          <div class="pay-history-title">История на плащанията</div>
+          ${payments.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(p=>`
+            <div class="pay-item">
+              <div class="pay-item-left">${p.date}${p.note?' · '+p.note:''}</div>
+              <div class="pay-item-amt">+${fmt(p.amountEUR)}${p.currency==='USD'?' <span style="font-size:10px;color:var(--text3)">($'+p.amount+')</span>':''}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+async function addDebt() {
+  try {
+    const creditor = v('dbt_creditor');
+    const total = parseFloat(document.getElementById('dbt_total')?.value || 0);
+    const cur = v('dbt_cur');
+    const date = v('dbt_date');
+    const note = v('dbt_note') || '';
+    if (!creditor) { toast('⚠️ Въведи кредитор!'); return; }
+    if (!total || total <= 0) { toast('⚠️ Въведи сума!'); return; }
+    const totalEUR = cur === 'USD' ? +(total * USD_TO_EUR).toFixed(2) : +total;
+    await db.ref(`users/${S.user.uid}/debts`).push({
+      creditor, total: +total, currency: cur, totalEUR, date, note,
+      payments: {}, createdAt: Date.now()
+    });
+    document.getElementById('dbt_creditor').value = '';
+    document.getElementById('dbt_total').value = '';
+    document.getElementById('dbt_note').value = '';
+    toast('✓ Дългът е добавен!');
+  } catch(err) {
+    console.error(err);
+    toast('❌ Грешка при запис!');
+  }
+}
+
+function openPayModal(debtId) {
+  _payDebtId = debtId;
+  document.getElementById('pay_amt').value = '';
+  document.getElementById('pay_note').value = '';
+  document.getElementById('pay_date').value = today();
+  document.getElementById('pay-modal').classList.add('show');
+}
+function closePayModal() {
+  document.getElementById('pay-modal').classList.remove('show');
+  _payDebtId = null;
+}
+document.getElementById('pay-modal').onclick = function(e) {
+  if (e.target === this) closePayModal();
+};
+
+async function submitPayment() {
+  try {
+    const amt = parseFloat(document.getElementById('pay_amt')?.value || 0);
+    const cur = v('pay_cur');
+    const date = v('pay_date');
+    const note = v('pay_note') || '';
+    if (!amt || amt <= 0) { toast('⚠️ Въведи сума!'); return; }
+    const amtEUR = cur === 'USD' ? +(amt * USD_TO_EUR).toFixed(2) : +amt;
+    await db.ref(`users/${S.user.uid}/debts/${_payDebtId}/payments`).push({
+      amount: +amt, currency: cur, amountEUR, date, note, createdAt: Date.now()
+    });
+    closePayModal();
+    toast('✓ Плащането е записано!');
+  } catch(err) {
+    console.error(err);
+    toast('❌ Грешка при запис!');
+  }
+}
+
+function delDebt(id) {
+  showConfirm('Изтрий дълг', 'Ще се изтрият и всички плащания към него.', async () => {
+    await db.ref(`users/${S.user.uid}/debts/${id}`).remove();
+    toast('Изтрито!');
+  });
+}
+
+
 </script>
-</body>
-</html>
