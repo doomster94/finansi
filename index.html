@@ -396,6 +396,13 @@ textarea{resize:vertical;min-height:72px;}
   padding:3px 8px;border-radius:6px;
 }
 
+#adddebt-modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);
+  display:none;align-items:flex-end;justify-content:center;z-index:300;
+  backdrop-filter:blur(4px);
+}
+#adddebt-modal.show{display:flex;}
+
 /* ── PAY MODAL ── */
 #pay-modal{
   position:fixed;inset:0;background:rgba(0,0,0,.6);
@@ -497,6 +504,20 @@ textarea{resize:vertical;min-height:72px;}
     <div style="display:flex;gap:10px;margin-top:4px">
       <button class="btn btn-ghost" onclick="closePayModal()">Отказ</button>
       <button class="btn btn-green" onclick="submitPayment()">Плати</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add to debt modal -->
+<div id="adddebt-modal">
+  <div class="pay-modal-box">
+    <div class="pay-modal-title">Добави към дълга</div>
+    <div class="fg"><label>Сума</label><input type="number" id="ad_amt" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="fg"><label>Валута</label><select id="ad_cur"><option>EUR</option><option>USD</option></select></div>
+    <div class="fg"><label>Бележка</label><input type="text" id="ad_note" placeholder="По желание..."></div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn btn-ghost" onclick="closeAddDebtModal()">Отказ</button>
+      <button class="btn btn-primary" onclick="submitAddDebt()">Добави</button>
     </div>
   </div>
 </div>
@@ -1256,7 +1277,10 @@ function debtHTML(d) {
       </div>
       <div class="progress-label">${pct.toFixed(0)}% изплатено</div>
 
-      ${!isPaid ? `<button class="pay-btn" onclick="event.stopPropagation();openPayModal('${d.id}')">+ Добави плащане</button>` : ''}
+      ${!isPaid ? `<div style="display:flex;gap:8px;margin-top:2px">
+        <button class="pay-btn" onclick="event.stopPropagation();openPayModal('${d.id}')">+ Добави плащане</button>
+        <button class="pay-btn" style="background:var(--accent-bg);border-color:var(--accent);color:var(--accent)" onclick="event.stopPropagation();openAddDebtModal('${d.id}')">+ Добави към дълга</button>
+      </div>` : ''}
 
       ${payments.length > 0 ? `
         <div class="pay-history">
@@ -1325,6 +1349,52 @@ async function submitPayment() {
     });
     closePayModal();
     toast('✓ Плащането е записано!');
+  } catch(err) {
+    console.error(err);
+    toast('❌ Грешка при запис!');
+  }
+}
+
+let _addDebtId = null;
+
+function openAddDebtModal(debtId) {
+  _addDebtId = debtId;
+  document.getElementById('ad_amt').value = '';
+  document.getElementById('ad_note').value = '';
+  document.getElementById('adddebt-modal').classList.add('show');
+}
+function closeAddDebtModal() {
+  document.getElementById('adddebt-modal').classList.remove('show');
+  _addDebtId = null;
+}
+document.getElementById('adddebt-modal').onclick = function(e) {
+  if (e.target === this) closeAddDebtModal();
+};
+
+async function submitAddDebt() {
+  try {
+    const amt = parseFloat(document.getElementById('ad_amt')?.value || 0);
+    const cur = v('ad_cur');
+    const note = v('ad_note') || '';
+    if (!amt || amt <= 0) { toast('⚠️ Въведи сума!'); return; }
+    const amtEUR = cur === 'USD' ? +(amt * USD_TO_EUR).toFixed(2) : +amt;
+    const debtRef = db.ref(`users/${S.user.uid}/debts/${_addDebtId}`);
+    const snap = await debtRef.get();
+    const debt = snap.val();
+    if (!debt) { toast('❌ Дългът не е намерен!'); return; }
+    const newTotal = +(debt.total + amt).toFixed(2);
+    const newTotalEUR = +(debt.totalEUR + amtEUR).toFixed(2);
+    const histKey = debtRef.child('addHistory').push().key;
+    await db.ref().update({
+      [`users/${S.user.uid}/debts/${_addDebtId}/total`]: newTotal,
+      [`users/${S.user.uid}/debts/${_addDebtId}/totalEUR`]: newTotalEUR,
+      [`users/${S.user.uid}/debts/${_addDebtId}/addHistory/${histKey}`]: {
+        amount: +amt, currency: cur, amountEUR: amtEUR,
+        note, date: today(), createdAt: Date.now()
+      }
+    });
+    closeAddDebtModal();
+    toast('✓ Добавено към дълга!');
   } catch(err) {
     console.error(err);
     toast('❌ Грешка при запис!');
