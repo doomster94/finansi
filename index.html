@@ -1021,7 +1021,7 @@ function renderRecurring() {
             </div>
             ${r.note?`<div style="font-size:12px;color:var(--text3);margin-top:2px">${r.note}</div>`:''}
           </div>
-          <button class="del-btn" onclick="delRec('${r.id}')">✕</button>
+          <button class="del-btn" onclick="event.stopPropagation();delRec('${r.id}')">✕</button>
         </div>`).join('')}
   `;
 }
@@ -1050,7 +1050,7 @@ function txHTML(tx) {
         <div class="tx-amt ${isInc?'green':'red'}">${sign}${fmt(tx.amountEUR)}</div>
         ${tx.currency==='USD'?`<div class="tx-orig">$${tx.amount}</div>`:''}
       </div>
-      <button class="del-btn" onclick="delTx('${tx.id}')">✕</button>
+      <button class="del-btn" onclick="event.stopPropagation();delTx('${tx.id}')">✕</button>
     </div>`;
 }
 
@@ -1231,7 +1231,7 @@ function debtHTML(d) {
         </div>
         <div style="display:flex;gap:6px;align-items:center">
           ${isPaid ? '<span class="debt-paid-badge">✓ ИЗПЛАТЕН</span>' : ''}
-          <button class="del-btn" onclick="delDebt('${d.id}')">✕</button>
+          <button class="del-btn" onclick="event.stopPropagation();delDebt('${d.id}')">✕</button>
         </div>
       </div>
 
@@ -1255,7 +1255,7 @@ function debtHTML(d) {
       </div>
       <div class="progress-label">${pct.toFixed(0)}% изплатено</div>
 
-      ${!isPaid ? `<button class="pay-btn" onclick="openPayModal('${d.id}')">+ Добави плащане</button>` : ''}
+      ${!isPaid ? `<button class="pay-btn" onclick="event.stopPropagation();openPayModal('${d.id}')">+ Добави плащане</button>` : ''}
 
       ${payments.length > 0 ? `
         <div class="pay-history">
