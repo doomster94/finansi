@@ -1345,7 +1345,7 @@ async function submitPayment() {
     if (!amt || amt <= 0) { toast('⚠️ Въведи сума!'); return; }
     const amtEUR = cur === 'USD' ? +(amt * USD_TO_EUR).toFixed(2) : +amt;
     await db.ref(`users/${S.user.uid}/debts/${_payDebtId}/payments`).push({
-      amount: +amt, currency: cur, amountEUR, date, note, createdAt: Date.now()
+      amount: +amt, currency: cur, amountEUR: amtEUR, date, note, createdAt: Date.now()
     });
     closePayModal();
     toast('✓ Плащането е записано!');
