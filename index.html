@@ -1181,8 +1181,9 @@ function closeConfirm(){
   _confirmCb=null;
 }
 document.getElementById('confirm-ok').onclick=async()=>{
+  const cb=_confirmCb;
   closeConfirm();
-  if(_confirmCb)await _confirmCb();
+  if(cb)await cb();
 };
 document.getElementById('confirm-overlay').onclick=function(e){
   if(e.target===this)closeConfirm();
