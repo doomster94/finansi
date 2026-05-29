@@ -8,7 +8,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -857,7 +856,13 @@ function renderOverview() {
     <div class="donut-card" id="donut-section">
       <div class="donut-title">Финансов Преглед</div>
       <div class="donut-wrap">
-        <canvas id="donut-chart" width="200" height="200"></canvas>
+        <svg id="donut-chart" viewBox="0 0 200 200" width="200" height="200" style="display:block;margin:0 auto;">
+          <circle cx="100" cy="100" r="80" fill="none" stroke="#2a2a2f" stroke-width="28"/>
+          <circle id="d-seg0" cx="100" cy="100" r="80" fill="none" stroke="#4CAF50" stroke-width="28" stroke-dasharray="0 503" stroke-linecap="butt" transform="rotate(-90 100 100)"/>
+          <circle id="d-seg1" cx="100" cy="100" r="80" fill="none" stroke="#f44336" stroke-width="28" stroke-dasharray="0 503" stroke-linecap="butt" transform="rotate(-90 100 100)"/>
+          <circle id="d-seg2" cx="100" cy="100" r="80" fill="none" stroke="#FFC107" stroke-width="28" stroke-dasharray="0 503" stroke-linecap="butt" transform="rotate(-90 100 100)"/>
+          <circle id="d-seg3" cx="100" cy="100" r="80" fill="none" stroke="#FF6B6B" stroke-width="28" stroke-dasharray="0 503" stroke-linecap="butt" transform="rotate(-90 100 100)"/>
+        </svg>
         <div class="donut-center">
           <div class="donut-center-amt" id="donut-net" style="color:var(--green)">0 €</div>
           <div class="donut-center-label">Нетен резултат</div>
@@ -1014,11 +1019,9 @@ function drawBar(ctx,x,y,w,h,r){
 /* ══════════════════════════════════════════
    DONUT CHART
 ══════════════════════════════════════════ */
-let _donutChart = null;
-
 function drawDonutChart() {
-  const canvas = document.getElementById('donut-chart');
-  if (!canvas) { setTimeout(drawDonutChart, 100); return; }
+  const svg = document.getElementById('donut-chart');
+  if (!svg) return;
 
   const txs = filtered();
   const inc = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amountEUR, 0);
@@ -1031,6 +1034,8 @@ function drawDonutChart() {
   const debtRemain = Math.max(debtTotal - debtPaid, 0);
 
   const net = inc - exp - recExp;
+  const vals = [inc, exp, debtRemain, recExp];
+  const total = vals.reduce((s, v) => s + v, 0);
 
   const netEl = document.getElementById('donut-net');
   if (netEl) { netEl.textContent = fmt(net); netEl.style.color = net >= 0 ? '#4CAF50' : '#f44336'; }
@@ -1039,53 +1044,32 @@ function drawDonutChart() {
   const dlDebt = document.getElementById('dl-debt'); if (dlDebt) dlDebt.textContent = fmt(debtRemain);
   const dlRec = document.getElementById('dl-rec'); if (dlRec) dlRec.textContent = fmt(recExp);
 
-  const total = inc + exp + recExp + debtRemain;
-  const hasData = total > 0;
-  const data = hasData ? [inc, exp, debtRemain, recExp] : [1, 1, 1, 1];
-  const colors = hasData ? ['#4CAF50','#f44336','#FFC107','#FF6B6B'] : ['#2a2a2f','#2a2a2f','#2a2a2f','#2a2a2f'];
+  const C = 2 * Math.PI * 80;
+  const gap = 2;
+  let offset = 0;
+  const colors = ['#4CAF50','#f44336','#FFC107','#FF6B6B'];
 
-  if (_donutChart) {
-    _donutChart.data.datasets[0].data = data;
-    _donutChart.data.datasets[0].backgroundColor = colors;
-    _donutChart.update('none');
-    return;
-  }
-
-  canvas.style.width = '200px';
-  canvas.style.height = '200px';
-  _donutChart = new Chart(canvas, {
-    type: 'doughnut',
-    data: {
-      labels: ['Приходи', 'Разходи', 'Дългове', 'Повт. разходи'],
-      datasets: [{
-        data: data,
-        backgroundColor: colors,
-        borderColor: '#131315',
-        borderWidth: 3,
-        hoverOffset: 6
-      }]
-    },
-    options: {
-      cutout: '68%',
-      responsive: true,
-      maintainAspectRatio: true,
-      animation: { duration: 500 },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: function(ctx) { return ' ' + fmt(hasData ? ctx.raw : 0); }
-          }
-        }
-      }
+  for (let i = 0; i < 4; i++) {
+    const seg = document.getElementById('d-seg' + i);
+    if (!seg) continue;
+    if (total <= 0) {
+      const each = C / 4 - gap;
+      seg.setAttribute('stroke-dasharray', each + ' ' + (C - each));
+      seg.setAttribute('stroke-dashoffset', -offset);
+      seg.setAttribute('stroke', '#2a2a2f');
+      offset += C / 4;
+    } else {
+      const portion = vals[i] / total;
+      const dash = Math.max(portion * C - gap, 0);
+      seg.setAttribute('stroke-dasharray', dash + ' ' + (C - dash));
+      seg.setAttribute('stroke-dashoffset', -offset);
+      seg.setAttribute('stroke', colors[i]);
+      offset += portion * C;
     }
-  });
-  requestAnimationFrame(() => _donutChart.resize());
+  }
 }
 
-/* ══════════════════════════════════════════
-   INCOME
-══════════════════════════════════════════ */
+
 function renderIncome() {
   const txs=filtered().filter(t=>t.type==='income');
   return `
