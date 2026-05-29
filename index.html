@@ -270,7 +270,7 @@ margin-bottom:14px;text-transform:uppercase;letter-spacing:.6px;
 position:relative;width:200px;height:200px;
 margin:0 auto 16px;
 }
-#donut-chart{display:block;}
+#donut-chart{display:block;width:200px;height:200px;}
 .donut-center{
 position:absolute;top:50%;left:50%;
 transform:translate(-50%,-50%);
@@ -1051,6 +1051,8 @@ function drawDonutChart() {
     return;
   }
 
+  canvas.style.width = '200px';
+  canvas.style.height = '200px';
   _donutChart = new Chart(canvas, {
     type: 'doughnut',
     data: {
@@ -1065,7 +1067,8 @@ function drawDonutChart() {
     },
     options: {
       cutout: '68%',
-      responsive: false,
+      responsive: true,
+      maintainAspectRatio: true,
       animation: { duration: 500 },
       plugins: {
         legend: { display: false },
@@ -1077,6 +1080,7 @@ function drawDonutChart() {
       }
     }
   });
+  requestAnimationFrame(() => _donutChart.resize());
 }
 
 /* ══════════════════════════════════════════
