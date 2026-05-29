@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -255,6 +256,48 @@ textarea{resize:vertical;min-height:72px;}
   margin-bottom:14px;text-transform:uppercase;letter-spacing:.6px;
 }
 #bar-chart{display:block;width:100%;height:140px;}
+
+/* ══ DONUT CHART ══ */
+.donut-card{
+background:var(--bg2);border:1px solid var(--border);
+border-radius:16px;padding:16px;margin-bottom:12px;
+}
+.donut-title{
+font-size:11px;font-weight:700;color:var(--text2);
+margin-bottom:14px;text-transform:uppercase;letter-spacing:.6px;
+}
+.donut-wrap{
+position:relative;width:200px;height:200px;
+margin:0 auto 16px;
+}
+#donut-chart{display:block;}
+.donut-center{
+position:absolute;top:50%;left:50%;
+transform:translate(-50%,-50%);
+text-align:center;pointer-events:none;
+}
+.donut-center-amt{
+font-size:18px;font-weight:800;letter-spacing:-.5px;
+line-height:1.1;
+}
+.donut-center-label{
+font-size:10px;font-weight:600;color:var(--text2);
+text-transform:uppercase;letter-spacing:.4px;margin-top:2px;
+}
+.donut-legend{
+display:grid;grid-template-columns:1fr 1fr;gap:8px;
+margin-top:4px;
+}
+.donut-legend-item{
+display:flex;align-items:center;gap:8px;
+padding:8px;background:var(--bg3);border-radius:10px;
+}
+.donut-legend-dot{
+width:10px;height:10px;border-radius:50%;flex-shrink:0;
+}
+.donut-legend-info{flex:1;min-width:0;}
+.donut-legend-name{font-size:11px;font-weight:600;color:var(--text2);}
+.donut-legend-amt{font-size:13px;font-weight:700;}
 
 /* ── SECTION ── */
 .card{
@@ -761,7 +804,7 @@ function render() {
   const c=document.getElementById('content');
   if (!c) return;
   switch(S.tab) {
-    case 'overview':  c.innerHTML=renderOverview(); drawChart(); break;
+    case 'overview':  c.innerHTML=renderOverview(); drawChart(); drawDonutChart(); break;
     case 'income':    c.innerHTML=renderIncome();  break;
     case 'expense':   c.innerHTML=renderExpense(); break;
     case 'recurring': c.innerHTML=renderRecurring(); break;
@@ -808,6 +851,23 @@ function renderOverview() {
       <div class="summary-card">
         <div class="s-label">Разходи</div>
         <div class="s-amount red">${fmt(exp)}</div>
+      </div>
+    </div>
+
+    <div class="donut-card" id="donut-section">
+      <div class="donut-title">Финансов Преглед</div>
+      <div class="donut-wrap">
+        <canvas id="donut-chart" width="200" height="200"></canvas>
+        <div class="donut-center">
+          <div class="donut-center-amt" id="donut-net" style="color:var(--green)">0 €</div>
+          <div class="donut-center-label">Нетен резултат</div>
+        </div>
+      </div>
+      <div class="donut-legend">
+        <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#4CAF50"></div><div class="donut-legend-info"><div class="donut-legend-name">Приходи</div><div class="donut-legend-amt" id="dl-inc" style="color:#4CAF50">0 €</div></div></div>
+        <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#f44336"></div><div class="donut-legend-info"><div class="donut-legend-name">Разходи</div><div class="donut-legend-amt" id="dl-exp" style="color:#f44336">0 €</div></div></div>
+        <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#FFC107"></div><div class="donut-legend-info"><div class="donut-legend-name">Дългове</div><div class="donut-legend-amt" id="dl-debt" style="color:#FFC107">0 €</div></div></div>
+        <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#FF6B6B"></div><div class="donut-legend-info"><div class="donut-legend-name">Повт. разходи</div><div class="donut-legend-amt" id="dl-rec" style="color:#FF6B6B">0 €</div></div></div>
       </div>
     </div>
 
@@ -949,6 +1009,74 @@ function drawBar(ctx,x,y,w,h,r){
     ctx.closePath();
   }
   ctx.fill();
+}
+
+/* ══════════════════════════════════════════
+   DONUT CHART
+══════════════════════════════════════════ */
+let _donutChart = null;
+
+function drawDonutChart() {
+  const canvas = document.getElementById('donut-chart');
+  if (!canvas) { setTimeout(drawDonutChart, 100); return; }
+
+  const txs = filtered();
+  const inc = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amountEUR, 0);
+  const exp = txs.filter(t => t.type === 'expense' && !t.fromRecurring).reduce((s, t) => s + t.amountEUR, 0);
+  const recExp = txs.filter(t => t.fromRecurring && t.type === 'expense').reduce((s, t) => s + t.amountEUR, 0);
+
+  const debts = S.debts || [];
+  const debtTotal = debts.reduce((s, d) => s + d.totalEUR, 0);
+  const debtPaid = debts.reduce((s, d) => s + Object.values(d.payments || {}).reduce((p, pay) => p + pay.amountEUR, 0), 0);
+  const debtRemain = Math.max(debtTotal - debtPaid, 0);
+
+  const net = inc - exp - recExp;
+
+  const netEl = document.getElementById('donut-net');
+  if (netEl) { netEl.textContent = fmt(net); netEl.style.color = net >= 0 ? '#4CAF50' : '#f44336'; }
+  const dlInc = document.getElementById('dl-inc'); if (dlInc) dlInc.textContent = fmt(inc);
+  const dlExp = document.getElementById('dl-exp'); if (dlExp) dlExp.textContent = fmt(exp);
+  const dlDebt = document.getElementById('dl-debt'); if (dlDebt) dlDebt.textContent = fmt(debtRemain);
+  const dlRec = document.getElementById('dl-rec'); if (dlRec) dlRec.textContent = fmt(recExp);
+
+  const total = inc + exp + recExp + debtRemain;
+  const hasData = total > 0;
+  const data = hasData ? [inc, exp, debtRemain, recExp] : [1, 1, 1, 1];
+  const colors = hasData ? ['#4CAF50','#f44336','#FFC107','#FF6B6B'] : ['#2a2a2f','#2a2a2f','#2a2a2f','#2a2a2f'];
+
+  if (_donutChart) {
+    _donutChart.data.datasets[0].data = data;
+    _donutChart.data.datasets[0].backgroundColor = colors;
+    _donutChart.update('none');
+    return;
+  }
+
+  _donutChart = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: ['Приходи', 'Разходи', 'Дългове', 'Повт. разходи'],
+      datasets: [{
+        data: data,
+        backgroundColor: colors,
+        borderColor: '#131315',
+        borderWidth: 3,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      cutout: '68%',
+      responsive: false,
+      animation: { duration: 500 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) { return ' ' + fmt(hasData ? ctx.raw : 0); }
+          }
+        }
+      }
+    }
+  });
 }
 
 /* ══════════════════════════════════════════
