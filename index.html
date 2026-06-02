@@ -2,7 +2,19 @@
 <html lang="bg">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-sca
+/* === INVESTMENTS === */
+.inv-card{background:var(--bg3);border-radius:14px;padding:14px;margin-bottom:10px;border:1px solid var(--border);}
+.inv-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.inv-name{font-size:15px;font-weight:700;color:var(--text);}
+.inv-type{font-size:11px;color:var(--text3);margin-top:2px;font-weight:600;}
+.inv-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--text2);}
+.inv-row span:last-child{font-weight:700;color:var(--text);}
+.inv-note{font-size:12px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.inv-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;padding:6px 0;}
+.inv-sum-label{font-size:11px;color:var(--text3);font-weight:600;margin-bottom:4px;}
+.inv-sum-val{font-size:15px;font-weight:800;color:var(--text);}
+le=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Финанси</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -553,6 +565,9 @@ border-radius:50%;margin-right:6px;vertical-align:middle;
       <button class="nav-item" data-tab="debt" onclick="switchTab('debt')">
         <span class="nav-icon">💸</span>Дълг
       </button>
+      <button class="nav-item" data-tab="invest" onclick="switchTab('invest')">
+        <span class="nav-icon">📈</span>Инвестиции
+      </button>
     </nav>
   </div>
 
@@ -639,6 +654,7 @@ const S = {
   txs: [],
   recs: [],
   debts: [],
+  investments: [],
   tab: 'overview',
   month: new Date(),
   filter: 'month',
@@ -685,6 +701,12 @@ function startListeners() {
     S.debts = Object.entries(d).map(([id,debt]) => ({id,...debt}));
     S.debts.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
     if (S.tab === 'debt') render();
+  });
+  db.ref(`users/${uid}/investments`).on('value', snap => {
+    const d = snap.val() || {};
+    S.investments = Object.entries(d).map(([id,inv]) => ({id,...inv}));
+    S.investments.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (S.tab === 'invest') render();
   });
 
   txOff = txRef.on('value', snap => {
@@ -790,7 +812,7 @@ function authErr(c) {
 /* ══════════════════════════════════════════
    NAVIGATION
 ══════════════════════════════════════════ */
-const TAB_TITLES = {overview:'Преглед',income:'Приходи',expense:'Разходи',recurring:'Повтарящи се',debt:'Дълг'};
+const TAB_TITLES = {overview:'Преглед',income:'Приходи',expense:'Разходи',recurring:'Повтарящи се',debt:'Дълг',invest:'Инвестиции'};
 
 function switchTab(t) {
   S.tab = t;
@@ -836,6 +858,7 @@ function render() {
     case 'expense':   c.innerHTML=renderExpense(); break;
     case 'recurring': c.innerHTML=renderRecurring(); break;
     case 'debt':      c.innerHTML=renderDebt(); break;
+    case 'invest':      c.innerHTML=renderInvestments(); break;
   }
 }
 
@@ -1689,6 +1712,89 @@ function delDebt(id) {
     toast('Изтрито!');
   });
 }
+function renderInvestments() {
+  const invs = S.investments || [];
+  const totalInvested = invs.reduce((s,v) => s + (v.invested||0), 0);
+  const totalCurrent  = invs.reduce((s,v) => s + (v.current||0), 0);
+  const totalGain     = totalCurrent - totalInvested;
+  const gainPct       = totalInvested > 0 ? (totalGain / totalInvested * 100) : 0;
+  const gainColor     = totalGain >= 0 ? 'var(--green)' : 'var(--red)';
+
+  const typeLabels = {stocks:'Акции',etf:'ETF',crypto:'Крипто',realestate:'Имот',other:'Друго'};
+
+  const cards = invs.map(v => {
+    const gain = (v.current||0) - (v.invested||0);
+    const pct  = v.invested > 0 ? (gain / v.invested * 100) : 0;
+    const gc   = gain >= 0 ? 'var(--green)' : 'var(--red)';
+    const sign = gain >= 0 ? '+' : '';
+    return `<div class="inv-card">
+      <div class="inv-card-top">
+        <div>
+          <div class="inv-name">${v.name}</div>
+          <div class="inv-type">${typeLabels[v.type]||v.type} ${v.date ? '&bull; ' + v.date.substring(0,7) : ''}</div>
+        </div>
+        <button class="del-btn" onclick="deleteInvestment('${v.id}')">&times;</button>
+      </div>
+      <div class="inv-row">
+        <span>Инвестирано</span>
+        <span>${fmt(v.invested||0)}</span>
+      </div>
+      <div class="inv-row">
+        <span>Текуща стойност</span>
+        <span style="color:${gc}">${fmt(v.current||0)}</span>
+      </div>
+      <div class="inv-row">
+        <span>Печалба/Загуба</span>
+        <span style="color:${gc}">${sign}${fmt(gain)} (${sign}${pct.toFixed(1)}%)</span>
+      </div>
+      ${v.note ? '<div class="inv-note">' + v.note + '</div>' : ''}
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="card">
+      <div class="card-title">Добави инвестиция</div>
+      <div class="fg"><label>Наименование</label><input type="text" id="inv_name" placeholder="Напр. Apple акции, Bitcoin..."></div>
+      <div class="form-row">
+        <div class="fg"><label>Тип</label><select id="inv_type"><option value="stocks">Акции</option><option value="etf">ETF</option><option value="crypto">Крипто</option><option value="realestate">Имот</option><option value="other">Друго</option></select></div>
+        <div class="fg"><label>Дата</label><input type="date" id="inv_date"></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>Инвестирана сума (€)</label><input type="number" id="inv_invested" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
+        <div class="fg"><label>Текуща стойност (€)</label><input type="number" id="inv_current" placeholder="0.00" step="0.01" min="0" inputmode="decimal"></div>
+      </div>
+      <div class="fg"><label>Бележка (опционално)</label><input type="text" id="inv_note" placeholder="..."></div>
+      <button class="btn-primary" onclick="addInvestment()">Добави</button>
+    </div>
+    ${invs.length > 0 ? `<div class="card"><div class="card-title">Портфолио — общо</div>
+      <div class="inv-summary">
+        <div><div class="inv-sum-label">Инвестирано</div><div class="inv-sum-val">${fmt(totalInvested)}</div></div>
+        <div><div class="inv-sum-label">Текущо</div><div class="inv-sum-val">${fmt(totalCurrent)}</div></div>
+        <div><div class="inv-sum-label">Печалба/Загуба</div><div class="inv-sum-val" style="color:${gainColor}">${totalGain>=0?'+':''}${fmt(totalGain)} (${gainPct.toFixed(1)}%)</div></div>
+      </div>
+    </div>` : ''}
+    ${cards}
+  `;
+}
+
+async function addInvestment() {
+  const name     = document.getElementById('inv_name').value.trim();
+  const type     = document.getElementById('inv_type').value;
+  const date     = document.getElementById('inv_date').value;
+  const invested = parseFloat(document.getElementById('inv_invested').value) || 0;
+  const current  = parseFloat(document.getElementById('inv_current').value) || 0;
+  const note     = document.getElementById('inv_note').value.trim();
+  if (!name || !invested) return;
+  await db.ref(`users/${S.user.uid}/investments`).push({
+    name, type, date, invested, current, note, createdAt: Date.now()
+  });
+  ['inv_name','inv_invested','inv_current','inv_note'].forEach(id => document.getElementById(id).value = '');
+}
+
+async function deleteInvestment(id) {
+  await db.ref(`users/${S.user.uid}/investments/${id}`).remove();
+}
+
 
 
 </script>
