@@ -309,6 +309,20 @@ display:flex;align-items:center;justify-content:center;
 width:160px;height:160px;
 font-size:12px;color:var(--text3);text-align:center;line-height:1.4;
 }
+.donut-tooltip{
+position:fixed;z-index:500;
+background:var(--bg4);border:1px solid var(--border2);
+border-radius:10px;padding:8px 12px;
+font-size:13px;font-weight:600;color:var(--text);
+pointer-events:none;white-space:nowrap;
+box-shadow:0 4px 16px rgba(0,0,0,.4);
+opacity:0;transition:opacity .15s;
+}
+.donut-tooltip.show{opacity:1;}
+.donut-tooltip-dot{
+display:inline-block;width:8px;height:8px;
+border-radius:50%;margin-right:6px;vertical-align:middle;
+}
 
 /* ── SECTION ── */
 .card{
@@ -576,6 +590,8 @@ font-size:12px;color:var(--text3);text-align:center;line-height:1.4;
   </div>
 </div>
 
+<!-- Donut Tooltip -->
+<div id="donut-tooltip" class="donut-tooltip"></div>
 <!-- Toast -->
 <div id="toast"></div>
 
@@ -1075,6 +1091,7 @@ function drawDonutChart() {
   const flowVals   = [inc, exp, recExp];
   const flowTotal  = flowVals.reduce((s,v) => s+v, 0);
   const flowColors = ['#4CAF50','#f44336','#FF6B6B'];
+  const flowLabels = ['Приходи', 'Разходи', 'Повт. разходи'];
   let offset = 0;
   for (let i = 0; i < 3; i++) {
     const seg = document.getElementById('df-seg'+i);
@@ -1092,6 +1109,11 @@ function drawDonutChart() {
       seg.setAttribute('stroke', flowColors[i]);
       offset += (flowVals[i]/flowTotal)*C;
     }
+    // Tooltip данни
+    seg._ttLabel = flowLabels[i];
+    seg._ttColor = flowColors[i];
+    seg._ttValue = flowVals[i];
+    attachTooltip(seg);
   }
 
   // Дясна донът: Дългове
@@ -1129,6 +1151,7 @@ function drawDonutChart() {
 
     const debtVals   = [debtPaid, debtRemain];
     const debtColors = ['#FFC107','#3a3a4a'];
+    const debtLabels = ['Платено', 'Остава'];
     let dOffset = 0;
     for (let i = 0; i < 2; i++) {
       const seg = document.getElementById('dd-seg'+i);
@@ -1138,8 +1161,50 @@ function drawDonutChart() {
       seg.setAttribute('stroke-dashoffset', -dOffset);
       seg.setAttribute('stroke', debtColors[i]);
       dOffset += (debtVals[i]/debtTotal)*C;
+      // Tooltip данни
+      seg._ttLabel = debtLabels[i];
+      seg._ttColor = debtColors[i];
+      seg._ttValue = debtVals[i];
+      attachTooltip(seg);
     }
   }
+}
+
+// Tooltip helper – прикача listeners към SVG circle сегмент
+function attachTooltip(seg) {
+  // Премахваме стари listeners чрез clone
+  const clone = seg.cloneNode(true);
+  seg.parentNode.replaceChild(clone, seg);
+
+  clone.style.cursor = 'pointer';
+
+  clone.addEventListener('mouseenter', function(e) {
+    const tt = document.getElementById('donut-tooltip');
+    if (!tt) return;
+    tt.innerHTML =
+      '<span class="donut-tooltip-dot" style="background:' + this._ttColor + '"></span>' +
+      this._ttLabel + ': <strong>' + fmt(this._ttValue) + '</strong>';
+    tt.classList.add('show');
+  });
+
+  clone.addEventListener('mousemove', function(e) {
+    const tt = document.getElementById('donut-tooltip');
+    if (!tt) return;
+    const x = e.clientX + 14;
+    const y = e.clientY - 36;
+    tt.style.left = x + 'px';
+    tt.style.top  = y + 'px';
+  });
+
+  clone.addEventListener('mouseleave', function() {
+    const tt = document.getElementById('donut-tooltip');
+    if (tt) tt.classList.remove('show');
+  });
+
+  // Копираме tooltip данните на clone
+  clone._ttLabel = seg._ttLabel || this && this._ttLabel;
+  clone._ttColor = seg._ttColor || this && this._ttColor;
+  clone._ttValue = seg._ttValue || this && this._ttValue;
 }
 
 
