@@ -1111,8 +1111,7 @@ function drawDonutChart() {
     if (debtLegend) debtLegend.style.display = 'none';
     if (debtWrap) {
       let ph = debtWrap.querySelector('.donut-placeholder');
-      if (!ph) { ph = document.createElement('div'); ph.className='donut-placeholder'; ph.textContent='Няма
-дългове'; debtWrap.appendChild(ph); }
+      if (!ph) { ph = document.createElement('div'); ph.className='donut-placeholder'; ph.textContent='Няма дългове'; debtWrap.appendChild(ph); }
       ph.style.display = 'flex';
     }
   } else {
