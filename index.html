@@ -2,19 +2,7 @@
 <html lang="bg">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-sca
-/* === INVESTMENTS === */
-.inv-card{background:var(--bg3);border-radius:14px;padding:14px;margin-bottom:10px;border:1px solid var(--border);}
-.inv-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
-.inv-name{font-size:15px;font-weight:700;color:var(--text);}
-.inv-type{font-size:11px;color:var(--text3);margin-top:2px;font-weight:600;}
-.inv-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--text2);}
-.inv-row span:last-child{font-weight:700;color:var(--text);}
-.inv-note{font-size:12px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
-.inv-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;padding:6px 0;}
-.inv-sum-label{font-size:11px;color:var(--text3);font-weight:600;margin-bottom:4px;}
-.inv-sum-val{font-size:15px;font-weight:800;color:var(--text);}
-le=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Финанси</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -335,6 +323,17 @@ opacity:0;transition:opacity .15s;
 display:inline-block;width:8px;height:8px;
 border-radius:50%;margin-right:6px;vertical-align:middle;
 }
+/* === INVESTMENTS === */
+.inv-card{background:var(--bg3);border-radius:14px;padding:14px;margin-bottom:10px;border:1px solid var(--border);}
+.inv-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.inv-name{font-size:15px;font-weight:700;color:var(--text);}
+.inv-type{font-size:11px;color:var(--text3);margin-top:2px;font-weight:600;}
+.inv-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--text2);}
+.inv-row span:last-child{font-weight:700;color:var(--text);}
+.inv-note{font-size:12px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.inv-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center;padding:6px 0;}
+.inv-sum-label{font-size:11px;color:var(--text3);font-weight:600;margin-bottom:4px;}
+.inv-sum-val{font-size:15px;font-weight:800;color:var(--text);}
 
 /* ── SECTION ── */
 .card{
