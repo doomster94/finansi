@@ -261,42 +261,54 @@ textarea{resize:vertical;min-height:72px;}
 background:var(--bg2);border:1px solid var(--border);
 border-radius:16px;padding:16px;margin-bottom:12px;
 }
-.donut-title{
+.donut-card-title{
 font-size:11px;font-weight:700;color:var(--text2);
 margin-bottom:14px;text-transform:uppercase;letter-spacing:.6px;
 }
-.donut-wrap{
-position:relative;width:200px;height:200px;
-margin:0 auto 16px;
+.donut-row{
+display:flex;flex-direction:row;gap:1rem;align-items:flex-start;
 }
-#donut-chart{display:block;width:200px;height:200px;}
+.donut-col{
+flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;
+}
+.donut-col-title{
+font-size:10px;font-weight:700;color:var(--text2);
+text-transform:uppercase;letter-spacing:.5px;
+margin-bottom:10px;text-align:center;
+}
+.donut-wrap{
+position:relative;width:160px;height:160px;flex-shrink:0;
+}
+.donut-svg{display:block;}
 .donut-center{
 position:absolute;top:50%;left:50%;
 transform:translate(-50%,-50%);
 text-align:center;pointer-events:none;
 }
 .donut-center-amt{
-font-size:18px;font-weight:800;letter-spacing:-.5px;
-line-height:1.1;
+font-size:14px;font-weight:800;letter-spacing:-.3px;line-height:1.1;
 }
 .donut-center-label{
-font-size:10px;font-weight:600;color:var(--text2);
-text-transform:uppercase;letter-spacing:.4px;margin-top:2px;
+font-size:9px;font-weight:600;color:var(--text2);
+text-transform:uppercase;letter-spacing:.3px;margin-top:1px;
 }
 .donut-legend{
-display:grid;grid-template-columns:1fr 1fr;gap:8px;
-margin-top:4px;
+display:flex;flex-direction:column;gap:5px;
+margin-top:10px;width:100%;
 }
 .donut-legend-item{
-display:flex;align-items:center;gap:8px;
-padding:8px;background:var(--bg3);border-radius:10px;
+display:flex;align-items:center;gap:6px;
+padding:5px 7px;background:var(--bg3);border-radius:8px;
 }
-.donut-legend-dot{
-width:10px;height:10px;border-radius:50%;flex-shrink:0;
-}
+.donut-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .donut-legend-info{flex:1;min-width:0;}
-.donut-legend-name{font-size:11px;font-weight:600;color:var(--text2);}
-.donut-legend-amt{font-size:13px;font-weight:700;}
+.donut-legend-name{font-size:10px;font-weight:600;color:var(--text2);}
+.donut-legend-amt{font-size:12px;font-weight:700;}
+.donut-placeholder{
+display:flex;align-items:center;justify-content:center;
+width:160px;height:160px;
+font-size:12px;color:var(--text3);text-align:center;line-height:1.4;
+}
 
 /* ── SECTION ── */
 .card{
@@ -854,25 +866,49 @@ function renderOverview() {
     </div>
 
     <div class="donut-card" id="donut-section">
-      <div class="donut-title">Финансов Преглед</div>
-      <div class="donut-wrap">
-        <svg id="donut-chart" viewBox="0 0 200 200" width="200" height="200" style="display:block;margin:0 auto;">
-          <circle cx="100" cy="100" r="80" fill="none" stroke="#2a2a2f" stroke-width="28"/>
-          <circle id="d-seg0" cx="100" cy="100" r="80" fill="none" stroke="#4CAF50" stroke-width="28" stroke-dasharray="0 503" stroke-linecap="butt" transform="rotate(-90 100 100)"/>
-          <circle id="d-seg1" cx="100" cy="100" r="80" fill="none" stroke="#f44336" stroke-width="28" stroke-dasharray="0 503" stroke-linecap="butt" transform="rotate(-90 100 100)"/>
-          <circle id="d-seg2" cx="100" cy="100" r="80" fill="none" stroke="#FFC107" stroke-width="28" stroke-dasharray="0 503" stroke-linecap="butt" transform="rotate(-90 100 100)"/>
-          <circle id="d-seg3" cx="100" cy="100" r="80" fill="none" stroke="#FF6B6B" stroke-width="28" stroke-dasharray="0 503" stroke-linecap="butt" transform="rotate(-90 100 100)"/>
-        </svg>
-        <div class="donut-center">
-          <div class="donut-center-amt" id="donut-net" style="color:var(--green)">0 €</div>
-          <div class="donut-center-label">Нетен резултат</div>
+      <div class="donut-card-title">Финансов Преглед</div>
+      <div class="donut-row">
+
+        <div class="donut-col">
+          <div class="donut-col-title">Парични потоци</div>
+          <div class="donut-wrap">
+            <svg id="donut-flow" class="donut-svg" viewBox="0 0 200 200" width="160" height="160">
+              <circle cx="100" cy="100" r="80" fill="none" stroke="#2a2a2f" stroke-width="28"/>
+              <circle id="df-seg0" cx="100" cy="100" r="80" fill="none" stroke="#4CAF50" stroke-width="28" stroke-dasharray="0 503" transform="rotate(-90 100 100)"/>
+              <circle id="df-seg1" cx="100" cy="100" r="80" fill="none" stroke="#f44336" stroke-width="28" stroke-dasharray="0 503" transform="rotate(-90 100 100)"/>
+              <circle id="df-seg2" cx="100" cy="100" r="80" fill="none" stroke="#FF6B6B" stroke-width="28" stroke-dasharray="0 503" transform="rotate(-90 100 100)"/>
+            </svg>
+            <div class="donut-center">
+              <div class="donut-center-amt" id="dflow-net" style="color:#4CAF50">0 €</div>
+              <div class="donut-center-label">Нетен</div>
+            </div>
+          </div>
+          <div class="donut-legend">
+            <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#4CAF50"></div><div class="donut-legend-info"><div class="donut-legend-name">Приходи</div><div class="donut-legend-amt" id="dfl-inc" style="color:#4CAF50">0 €</div></div></div>
+            <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#f44336"></div><div class="donut-legend-info"><div class="donut-legend-name">Разходи</div><div class="donut-legend-amt" id="dfl-exp" style="color:#f44336">0 €</div></div></div>
+            <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#FF6B6B"></div><div class="donut-legend-info"><div class="donut-legend-name">Повт. разходи</div><div class="donut-legend-amt" id="dfl-rec" style="color:#FF6B6B">0 €</div></div></div>
+          </div>
         </div>
-      </div>
-      <div class="donut-legend">
-        <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#4CAF50"></div><div class="donut-legend-info"><div class="donut-legend-name">Приходи</div><div class="donut-legend-amt" id="dl-inc" style="color:#4CAF50">0 €</div></div></div>
-        <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#f44336"></div><div class="donut-legend-info"><div class="donut-legend-name">Разходи</div><div class="donut-legend-amt" id="dl-exp" style="color:#f44336">0 €</div></div></div>
-        <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#FFC107"></div><div class="donut-legend-info"><div class="donut-legend-name">Дългове</div><div class="donut-legend-amt" id="dl-debt" style="color:#FFC107">0 €</div></div></div>
-        <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#FF6B6B"></div><div class="donut-legend-info"><div class="donut-legend-name">Повт. разходи</div><div class="donut-legend-amt" id="dl-rec" style="color:#FF6B6B">0 €</div></div></div>
+
+        <div class="donut-col">
+          <div class="donut-col-title">Дългове</div>
+          <div class="donut-wrap" id="donut-debt-wrap">
+            <svg id="donut-debt" class="donut-svg" viewBox="0 0 200 200" width="160" height="160">
+              <circle cx="100" cy="100" r="80" fill="none" stroke="#2a2a2f" stroke-width="28"/>
+              <circle id="dd-seg0" cx="100" cy="100" r="80" fill="none" stroke="#FFC107" stroke-width="28" stroke-dasharray="0 503" transform="rotate(-90 100 100)"/>
+              <circle id="dd-seg1" cx="100" cy="100" r="80" fill="none" stroke="#3a3a4a" stroke-width="28" stroke-dasharray="0 503" transform="rotate(-90 100 100)"/>
+            </svg>
+            <div class="donut-center" id="donut-debt-center">
+              <div class="donut-center-amt" id="ddebt-total" style="color:var(--text)">0 €</div>
+              <div class="donut-center-label">Общо</div>
+            </div>
+          </div>
+          <div class="donut-legend" id="donut-debt-legend">
+            <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#FFC107"></div><div class="donut-legend-info"><div class="donut-legend-name">Платено</div><div class="donut-legend-amt" id="ddl-paid" style="color:#FFC107">0 €</div></div></div>
+            <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#3a3a4a;border:1px solid #555"></div><div class="donut-legend-info"><div class="donut-legend-name">Остава</div><div class="donut-legend-amt" id="ddl-remain" style="color:var(--red)">0 €</div></div></div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -1020,51 +1056,89 @@ function drawBar(ctx,x,y,w,h,r){
    DONUT CHART
 ══════════════════════════════════════════ */
 function drawDonutChart() {
-  const svg = document.getElementById('donut-chart');
-  if (!svg) return;
-
   const txs = filtered();
-  const inc = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amountEUR, 0);
-  const exp = txs.filter(t => t.type === 'expense' && !t.fromRecurring).reduce((s, t) => s + t.amountEUR, 0);
-  const recExp = txs.filter(t => t.fromRecurring && t.type === 'expense').reduce((s, t) => s + t.amountEUR, 0);
-
-  const debts = S.debts || [];
-  const debtTotal = debts.reduce((s, d) => s + d.totalEUR, 0);
-  const debtPaid = debts.reduce((s, d) => s + Object.values(d.payments || {}).reduce((p, pay) => p + pay.amountEUR, 0), 0);
-  const debtRemain = Math.max(debtTotal - debtPaid, 0);
-
-  const net = inc - exp - recExp;
-  const vals = [inc, exp, debtRemain, recExp];
-  const total = vals.reduce((s, v) => s + v, 0);
-
-  const netEl = document.getElementById('donut-net');
-  if (netEl) { netEl.textContent = fmt(net); netEl.style.color = net >= 0 ? '#4CAF50' : '#f44336'; }
-  const dlInc = document.getElementById('dl-inc'); if (dlInc) dlInc.textContent = fmt(inc);
-  const dlExp = document.getElementById('dl-exp'); if (dlExp) dlExp.textContent = fmt(exp);
-  const dlDebt = document.getElementById('dl-debt'); if (dlDebt) dlDebt.textContent = fmt(debtRemain);
-  const dlRec = document.getElementById('dl-rec'); if (dlRec) dlRec.textContent = fmt(recExp);
-
-  const C = 2 * Math.PI * 80;
+  const C   = 2 * Math.PI * 80;
   const gap = 2;
-  let offset = 0;
-  const colors = ['#4CAF50','#f44336','#FFC107','#FF6B6B'];
 
-  for (let i = 0; i < 4; i++) {
-    const seg = document.getElementById('d-seg' + i);
+  // Ляв донът: Парични потоци
+  const inc    = txs.filter(t => t.type==='income').reduce((s,t) => s+t.amountEUR, 0);
+  const exp    = txs.filter(t => t.type==='expense' && !t.fromRecurring).reduce((s,t) => s+t.amountEUR, 0);
+  const recExp = txs.filter(t => t.fromRecurring && t.type==='expense').reduce((s,t) => s+t.amountEUR, 0);
+  const net    = inc - exp - recExp;
+
+  const flowEl = document.getElementById('dflow-net');
+  if (flowEl) { flowEl.textContent = fmt(net); flowEl.style.color = net>=0 ? '#4CAF50' : '#f44336'; }
+  const dflInc = document.getElementById('dfl-inc'); if (dflInc) dflInc.textContent = fmt(inc);
+  const dflExp = document.getElementById('dfl-exp'); if (dflExp) dflExp.textContent = fmt(exp);
+  const dflRec = document.getElementById('dfl-rec'); if (dflRec) dflRec.textContent = fmt(recExp);
+
+  const flowVals   = [inc, exp, recExp];
+  const flowTotal  = flowVals.reduce((s,v) => s+v, 0);
+  const flowColors = ['#4CAF50','#f44336','#FF6B6B'];
+  let offset = 0;
+  for (let i = 0; i < 3; i++) {
+    const seg = document.getElementById('df-seg'+i);
     if (!seg) continue;
-    if (total <= 0) {
-      const each = C / 4 - gap;
-      seg.setAttribute('stroke-dasharray', each + ' ' + (C - each));
+    if (flowTotal <= 0) {
+      const each = C/3 - gap;
+      seg.setAttribute('stroke-dasharray', each+' '+(C-each));
       seg.setAttribute('stroke-dashoffset', -offset);
       seg.setAttribute('stroke', '#2a2a2f');
-      offset += C / 4;
+      offset += C/3;
     } else {
-      const portion = vals[i] / total;
-      const dash = Math.max(portion * C - gap, 0);
-      seg.setAttribute('stroke-dasharray', dash + ' ' + (C - dash));
+      const dash = Math.max((flowVals[i]/flowTotal)*C - gap, 0);
+      seg.setAttribute('stroke-dasharray', dash+' '+(C-dash));
       seg.setAttribute('stroke-dashoffset', -offset);
-      seg.setAttribute('stroke', colors[i]);
-      offset += portion * C;
+      seg.setAttribute('stroke', flowColors[i]);
+      offset += (flowVals[i]/flowTotal)*C;
+    }
+  }
+
+  // Дясна донът: Дългове
+  const debts      = S.debts || [];
+  const debtTotal  = debts.reduce((s,d) => s+d.totalEUR, 0);
+  const debtPaid   = debts.reduce((s,d) => s+Object.values(d.payments||{}).reduce((p,pay) => p+pay.amountEUR, 0), 0);
+  const debtRemain = Math.max(debtTotal-debtPaid, 0);
+
+  const debtWrap   = document.getElementById('donut-debt-wrap');
+  const debtCenter = document.getElementById('donut-debt-center');
+  const debtLegend = document.getElementById('donut-debt-legend');
+  const debtSvg    = document.getElementById('donut-debt');
+
+  if (debtTotal <= 0) {
+    if (debtSvg)    debtSvg.style.display    = 'none';
+    if (debtCenter) debtCenter.style.display = 'none';
+    if (debtLegend) debtLegend.style.display = 'none';
+    if (debtWrap) {
+      let ph = debtWrap.querySelector('.donut-placeholder');
+      if (!ph) { ph = document.createElement('div'); ph.className='donut-placeholder'; ph.textContent='Няма
+дългове'; debtWrap.appendChild(ph); }
+      ph.style.display = 'flex';
+    }
+  } else {
+    if (debtSvg)    debtSvg.style.display    = 'block';
+    if (debtCenter) debtCenter.style.display = '';
+    if (debtLegend) debtLegend.style.display = '';
+    if (debtWrap) { const ph=debtWrap.querySelector('.donut-placeholder'); if(ph) ph.style.display='none'; }
+
+    const ddTotal  = document.getElementById('ddebt-total');
+    const ddPaid   = document.getElementById('ddl-paid');
+    const ddRemain = document.getElementById('ddl-remain');
+    if (ddTotal)  ddTotal.textContent  = fmt(debtTotal);
+    if (ddPaid)   ddPaid.textContent   = fmt(debtPaid);
+    if (ddRemain) ddRemain.textContent = fmt(debtRemain);
+
+    const debtVals   = [debtPaid, debtRemain];
+    const debtColors = ['#FFC107','#3a3a4a'];
+    let dOffset = 0;
+    for (let i = 0; i < 2; i++) {
+      const seg = document.getElementById('dd-seg'+i);
+      if (!seg) continue;
+      const dash = Math.max((debtVals[i]/debtTotal)*C - gap, 0);
+      seg.setAttribute('stroke-dasharray', dash+' '+(C-dash));
+      seg.setAttribute('stroke-dashoffset', -dOffset);
+      seg.setAttribute('stroke', debtColors[i]);
+      dOffset += (debtVals[i]/debtTotal)*C;
     }
   }
 }
