@@ -1000,7 +1000,6 @@ function drawChart() {
   if(W<=10){setTimeout(drawChart,80);return;}
   const H=140;
   canvas.style.width=W+'px';
-  canvas.style.height=H+'px';
   canvas.width=W*dpr;
   canvas.height=H*dpr;
   const ctx=canvas.getContext('2d');
@@ -1024,34 +1023,63 @@ function drawChart() {
   const cW=W-pL-pR, cH=H-pT-pB;
   const gW=cW/5, bW=gW*0.32, gap=gW*0.06;
 
+  const bars=[];
   data.forEach((d,i)=>{
     const cx=pL+i*gW+gW/2;
     const iH=Math.max((d.inc/maxV)*cH,d.inc>0?2:0);
     const eH=Math.max((d.exp/maxV)*cH,d.exp>0?2:0);
 
-    // Income bar
     ctx.fillStyle='rgba(34,197,94,0.75)';
     drawBar(ctx,cx-bW-gap/2,pT+cH-iH,bW,iH,3);
+    bars.push({x:cx-bW-gap/2,y:pT+cH-iH,w:bW,h:iH,label:'Приходи',value:d.inc,color:'#22c55e',month:d.lbl});
 
-    // Expense bar
     ctx.fillStyle='rgba(239,68,68,0.75)';
     drawBar(ctx,cx+gap/2,pT+cH-eH,bW,eH,3);
+    bars.push({x:cx+gap/2,y:pT+cH-eH,w:bW,h:eH,label:'Разходи',value:d.exp,color:'#ef4444',month:d.lbl});
 
-    // Label
     ctx.fillStyle='#505060';
-    ctx.font=`500 11px DM Sans,sans-serif`;
+    ctx.font='500 11px DM Sans,sans-serif';
     ctx.textAlign='center';
     ctx.fillText(d.lbl,cx,H-7);
   });
 
-  // Baseline
   ctx.strokeStyle='#252528';
   ctx.lineWidth=1;
   ctx.beginPath();
   ctx.moveTo(pL,pT+cH);ctx.lineTo(W-pR,pT+cH);
   ctx.stroke();
-}
 
+  canvas._barBars=bars;
+  canvas._barW=W;
+  canvas._barH=H;
+  if(!canvas._tooltipAttached){
+    canvas._tooltipAttached=true;
+    const tt=document.getElementById('donut-tooltip');
+    canvas.addEventListener('mousemove',function(e){
+      const rect=canvas.getBoundingClientRect();
+      const sx=rect.width/canvas._barW;
+      const sy=rect.height/canvas._barH;
+      const mx=(e.clientX-rect.left)/sx;
+      const my=(e.clientY-rect.top)/sy;
+      let found=null;
+      for(const b of canvas._barBars){
+        if(b.h>0&&mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h){found=b;break;}
+      }
+      if(found){
+        tt.innerHTML='<span class="donut-tooltip-dot" style="background:'+found.color+'"></span>'+found.month+' '+found.label+': '+fmt(found.value);
+        tt.style.left=(e.clientX+14)+'px';
+        tt.style.top=(e.clientY-36)+'px';
+        tt.classList.add('show');
+      } else {
+        tt.classList.remove('show');
+      }
+    });
+    canvas.addEventListener('mouseleave',function(){
+      const tt=document.getElementById('donut-tooltip');
+      tt.classList.remove('show');
+    });
+  }
+}
 function drawBar(ctx,x,y,w,h,r){
   if(h<=0)return;
   r=Math.min(r,h/2,w/2);
